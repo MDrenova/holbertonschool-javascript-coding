@@ -1,29 +1,44 @@
 const http = require('http');
-const url = require('url');
-const countStudents = require('./3-read_file_async');
+const fs = require('fs').promises;
 
-const app = http.createServer((require, result) => {
-  const path = url.parse(require.url).pathname;
-  if (path === '/') {
-    result.end('Hello Holberton School!');
-  } else if (path === '/students') {
-    result.write('This is the list of our students\n');
-    countStudents(process.argv[2])
-      .then((data) => {
-        result.write(`Number of students: ${data.students.length}\n`);
-        for (const field in data.subjects) {
-          if (Object.prototype.hasOwnProperty.call(data.subjects, field)) {
-            result.write(`Number of students in ${field}: ${data.subjects[field].length}. List: ${data.subjects[field].join(', ')}\n`);
-          }
-        }
-        result.end();
-      })
-      .catch((error) => {
-        result.end(error.message);
-      });
-  }
+const host = 'localhost';
+const port = 1245;
+const database = process.argv[2]; // The name of the database is passed as an argument
+
+let studentList = '';
+
+const requestListener = function (req, res) {
+    res.setHeader('Content-Type', 'text/plain');
+
+    if (req.url === '/') {
+        res.writeHead(200);
+        res.end('Hello Holberton School!');
+    } else if (req.url === '/students') {
+        fs.readFile(database, 'utf8')
+            .then(contents => {
+                studentList = 'This is the list of our students\n';
+                const lines = contents.split('\n');
+                lines.forEach((line) => {
+                    if (line) {
+                        studentList += line + '\n';
+                    }
+                });
+                res.writeHead(200);
+                res.end(studentList);
+            })
+            .catch(err => {
+                res.writeHead(500);
+                res.end(err);
+            });
+    } else {
+        res.writeHead(404);
+        res.end('Resource not found');
+    }
+};
+
+const app = http.createServer(requestListener);
+app.listen(port, host, () => {
+    console.log(`Server is running on http://${host}:${port}`);
 });
-
-app.listen(1245);
 
 module.exports = app;
